@@ -41,14 +41,21 @@ def retrieve_context(question, limit=4):
     return [chunk for _, chunk in ranked[:limit]]
 
 
-def _prompt(question, context):
+def _history_text(history):
+    if not history:
+        return '暂无历史对话。'
+    return '\n'.join(f"{item['role']}: {item['content']}" for item in history)
+
+
+def _prompt(question, context, history=None):
     context_text = '\n\n---\n\n'.join(context) or '知识库中暂时没有与问题直接匹配的内容。'
+    history_text = _history_text(history or [])
     return (
         '你是潮韵商城的文化智能体。知识库有相关内容时必须优先依据知识库回答；'
         '知识库没有相关内容时，可以使用你的通用知识直接回答。'
         '涉及潮韵商城项目的具体事实、数据、人员或承诺时，知识库没有依据就不要猜测。'
         '使用简洁、亲切的中文。\n\n'
-        f'知识库内容：\n{context_text}\n\n用户问题：{question}'
+        f'知识库内容：\n{context_text}\n\n对话历史：\n{history_text}\n\n用户问题：{question}'
     )
 
 
@@ -86,7 +93,7 @@ def _coze_text(data):
     return ''
 
 
-def answer_with_coze(question, context):
+def answer_with_coze(question, context, history):
     token = os.getenv('COZE_API_TOKEN', '').strip()
     bot_id = os.getenv('COZE_BOT_ID', '').strip()
     if not token or not bot_id:
@@ -98,7 +105,7 @@ def answer_with_coze(question, context):
         'stream': False,
         'auto_save_history': True,
         'additional_messages': [
-            {'role': 'user', 'content': _prompt(question, context), 'content_type': 'text'},
+            {'role': 'user', 'content': _prompt(question, context, history), 'content_type': 'text'},
         ],
     }
     result = _post_json(f'{base_url}/v3/chat', payload, {'Authorization': f'Bearer {token}'})
@@ -108,7 +115,7 @@ def answer_with_coze(question, context):
     return {'answer': answer, 'sources': ['Coze 智能体知识库'] if context else []}
 
 
-def answer_with_deepseek(question, context):
+def answer_with_deepseek(question, context, history):
     api_key = os.getenv('LLM_API_KEY', '').strip()
     if not api_key:
         raise RuntimeError('LLM_API_KEY 未配置。')
@@ -120,18 +127,20 @@ def answer_with_deepseek(question, context):
         max_tokens=700,
         messages=[
             {'role': 'system', 'content': _prompt('', context)},
+            *history,
             {'role': 'user', 'content': question},
         ],
     )
     return {'answer': response.choices[0].message.content.strip(), 'sources': ['潮韵商城项目知识库'] if context else []}
 
 
-def answer_question(question):
+def answer_question(question, history=None):
     context = retrieve_context(question)
+    history = history or []
     provider = os.getenv('ASSISTANT_PROVIDER', 'deepseek').strip().lower()
     if provider == 'coze':
-        return answer_with_coze(question, context)
-    return answer_with_deepseek(question, context)
+        return answer_with_coze(question, context, history)
+    return answer_with_deepseek(question, context, history)
 
 
 

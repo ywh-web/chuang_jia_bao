@@ -74,8 +74,19 @@ def assistant_chat(request):
         return JsonResponse({'message': '请输入问题。'}, status=400)
     if len(question) > 1200:
         return JsonResponse({'message': '问题不能超过 1200 个字符。'}, status=400)
+    history = payload.get('history', [])
+    if not isinstance(history, list):
+        return JsonResponse({'message': '对话历史格式不正确。'}, status=400)
+    normalized_history = []
+    for item in history[-20:]:
+        if not isinstance(item, dict):
+            continue
+        role = item.get('role')
+        content = str(item.get('content', '')).strip()
+        if role in {'user', 'assistant'} and content:
+            normalized_history.append({'role': role, 'content': content[:2000]})
     try:
-        result = answer_question(question)
+        result = answer_question(question, normalized_history)
     except RuntimeError as exc:
         return JsonResponse({'message': str(exc)}, status=503)
     except Exception:
