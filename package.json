@@ -1,0 +1,9 @@
+{
+  "name": "chaoyun-mall",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:frontend": "npm --prefix frontend run build"
+  }
+}
