@@ -3,6 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import './style.css'
 import App from './App.vue'
 
+window.__CHAoyun_API_BASE__ = import.meta.env.VITE_API_BASE_URL || ''
+
 import routes from './router'
 
 const router = createRouter({
@@ -12,3 +14,4 @@ const router = createRouter({
 })
 
 createApp(App).use(router).mount('#app')
+

@@ -14,6 +14,23 @@
   const root = document.createElement('div'); root.className = 'cy-agent-root'; document.body.appendChild(root)
   const launcher = () => { root.innerHTML = `<button class="cy-agent-launcher" type="button" aria-label="打开潮韵智能体">${avatar()}<span><strong>潮韵小助手</strong><small>点击和我聊聊嵌瓷</small></span></button>`; root.querySelector('button').onclick = panel }
   const panel = () => { root.innerHTML = `<section class="cy-agent-panel" aria-label="潮韵智能体"><header class="cy-agent-head">${avatar()}<span><strong>潮韵小助手</strong><small>一起认识潮州嵌瓷</small></span><button class="cy-agent-close" type="button" aria-label="关闭">×</button></header><div class="cy-agent-body"><div class="cy-agent-message">${avatar()}<div class="cy-agent-bubble">你好，我是潮韵商城的小助手。想了解嵌瓷、数字传承或合作方式吗？</div></div><div class="cy-agent-suggestions">${quick.map((q) => `<button type="button" data-q="${q}">${q}</button>`).join('')}</div><form class="cy-agent-form"><input aria-label="输入问题" placeholder="输入你想了解的内容…" maxlength="120"><button type="submit">发送</button></form></div></section>`; root.querySelector('.cy-agent-close').onclick = launcher; root.querySelectorAll('[data-q]').forEach((b) => b.onclick = () => answer(b.dataset.q)); root.querySelector('form').onsubmit = (e) => { e.preventDefault(); const i=e.currentTarget.querySelector('input'); answer(i.value.trim()); i.value='' } }
-  const answer = (q) => { const bubble = root.querySelector('.cy-agent-bubble'); if (bubble) bubble.textContent = replies[q] || (q ? `我先记下你的问题：“${q}”。目前我可以介绍嵌瓷、数字体验和合作方式，后续可接入知识库提供更完整的回答。` : '可以点击上面的快捷问题，或输入你想了解的内容。') }
+  const answer = async (q) => {
+    const bubble = root.querySelector('.cy-agent-bubble')
+    if (!bubble) return
+    if (!q) { bubble.textContent = '可以点击上面的快捷问题，或输入你想了解的内容。'; return }
+    bubble.textContent = '正在查阅潮韵商城知识库…'
+    try {
+      const base = window.__CHAoyun_API_BASE__ || 'http://127.0.0.1:8000'
+      const response = await fetch(base + '/api/assistant/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.message || 'request failed')
+      bubble.textContent = data.answer
+    } catch (error) {
+      bubble.textContent = error.message || '暂时无法连接后端，请检查 Django 服务。'
+    }
+  }
   launcher()
 })()
+
+
+

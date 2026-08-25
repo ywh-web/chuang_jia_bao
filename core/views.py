@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from .models import ContactInquiry
+from .assistant_service import answer_question
 
 
 def backend_home(request):
@@ -59,3 +60,25 @@ def contact_inquiry_create(request):
 @require_http_methods(['GET'])
 def health_check(request):
     return JsonResponse({'status': 'ok'})
+@csrf_exempt
+@require_http_methods(['POST', 'OPTIONS'])
+def assistant_chat(request):
+    if request.method == 'OPTIONS':
+        return JsonResponse({}, status=204)
+    try:
+        payload = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'message': '问题格式不正确。'}, status=400)
+    question = str(payload.get('question', '')).strip()
+    if not question:
+        return JsonResponse({'message': '请输入问题。'}, status=400)
+    if len(question) > 1200:
+        return JsonResponse({'message': '问题不能超过 1200 个字符。'}, status=400)
+    try:
+        result = answer_question(question)
+    except RuntimeError as exc:
+        return JsonResponse({'message': str(exc)}, status=503)
+    except Exception:
+        return JsonResponse({'message': '智能体暂时无法回答，请稍后再试。'}, status=502)
+    return JsonResponse(result)
+
