@@ -78,8 +78,12 @@
     const submit = form ? form.querySelector('button') : null
     if (submit) submit.disabled = true
     try {
-      const base = window.__CHAoyun_API_BASE__ || 'http://127.0.0.1:8000'
-      const response = await fetch(base + '/api/assistant/chat/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q, history: previousHistory }) })
+      const configuredBase = window.__CHAoyun_API_BASE__ || 'http://127.0.0.1:8000/api'
+      const base = configuredBase.replace(/\/+$/, '')
+      const endpoint = /\/api$/i.test(base) ? base + '/assistant/chat/' : base + '/api/assistant/chat/'
+      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q, history: previousHistory }) })
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) throw new Error(`助手接口暂时不可用（${response.status}），请检查后端服务地址。`)
       const data = await response.json()
       if (!response.ok) throw new Error(data.message || 'request failed')
       pending.textContent = data.answer
